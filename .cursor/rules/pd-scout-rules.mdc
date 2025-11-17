@@ -1,0 +1,625 @@
+---
+description: Mission-Specific Rules for pd-scout Development
+alwaysApply: True
+---
+# pd-scout Mission & Architecture Rules
+
+## Mission Statement
+
+**pd-scout** is a generative tooling framework that helps product teams identify design system adoption opportunities, inconsistencies, and technical debt in their codebases.
+
+**What makes pd-scout different:**
+- Uses LLM-powered "agentic" exploration (not fixed rules)
+- Understands context and provides nuanced recommendations
+- Built for design system teams to audit real-world codebases
+- Extensible via YAML patterns and templates (no code changes needed)
+
+**Built by:** NYT Design Systems team  
+**Current state:** Node.js/TypeScript CLI tool  
+**Future state:** CLI + Web dashboard for visual results browsing
+
+---
+
+## Project Context for LLMs
+
+If you're working on pd-scout, you need to understand:
+
+### 1. **Core Functionality**
+pd-scout analyzes codebases using an "agentic loop" where an LLM:
+1. Receives a pattern (what to look for) and template (how to analyze)
+2. Explores the codebase using tools (list files, read files, search code)
+3. Makes decisions about what to investigate next
+4. Returns structured findings categorized by adoption level
+
+**Example use case:**
+```bash
+pd-scout analyze --template typography-audit
+# → Finds all font usage, categorizes by design system adoption
+# → Returns: 47 opportunities to use design tokens instead of hardcoded values
+```
+
+### 2. **Key Concepts**
+
+**Patterns** (YAML): What to search for
+```yaml
+# patterns/typography.yaml
+searchPatterns:
+  typescript:
+    - pattern: "fontSize:"
+      description: "Inline font sizes"
+```
+
+**Templates** (YAML): How to analyze
+```yaml
+# templates/typography-audit.yaml
+systemPrompt: |
+  You are a design systems expert.
+  Find all typography usage and categorize by adoption level.
+```
+
+**Tools** (TypeScript): What the LLM can do
+- `list_files` - Browse repository structure
+- `read_files` - Read actual code
+- `search_code` - Find patterns across files
+- `finish_analysis` - Return structured results
+
+### 3. **Target Users**
+- **Primary:** Design system engineers (technical)
+- **Secondary:** Product designers (non-technical, via future web UI)
+- **Use case:** Auditing design system adoption across large codebases
+
+---
+
+## Current Architecture (CLI Only)
+
+```
+pd-scout/
+├── src/
+│   ├── core/              # Business logic (agentic analyzer, tools)
+│   ├── cli/               # Terminal interface (commands, UI)
+│   ├── models/            # Types and Zod schemas
+│   ├── patterns/          # Pattern system (loaders, validators)
+│   ├── templates/         # Template system (loaders, interpolators)
+│   └── utils/             # Shared utilities
+├── patterns/              # Built-in patterns (typography, color)
+└── templates/             # Built-in templates (typography-audit)
+```
+
+**Key architectural decisions:**
+- **Agentic approach:** LLM decides exploration strategy (not hardcoded)
+- **Token budget:** Controls cost and analysis depth
+- **Caching:** Repositories and results cached to avoid re-cloning
+- **ESM modules:** Project uses ES modules, not CommonJS
+
+---
+
+## Future Architecture (CLI + Web UI)
+
+When web UI is added, the project will be refactored to:
+
+```
+pd-scout/
+├── packages/
+│   ├── core/              # Layer 1: Shared business logic
+│   │   ├── analyzer/      # Agentic analysis engine
+│   │   ├── tools/         # LLM tools (read, search, etc.)
+│   │   ├── models/        # Data models and schemas
+│   │   └── patterns/      # Pattern/template system
+│   │
+│   ├── cli/               # Layer 2a: Terminal interface
+│   │   ├── commands/      # CLI commands
+│   │   └── ui/            # Terminal output formatting
+│   │
+│   └── web/               # Layer 2b: Browser interface
+│       ├── app/           # Next.js routes
+│       ├── components/    # React components
+│       └── server/        # Backend (database, API)
+```
+
+**Critical separation of concerns:**
+- **Core:** Pure TypeScript, no CLI or React dependencies
+- **CLI:** Uses core, adds terminal-specific UI
+- **Web:** Uses core, adds React/Next.js UI and database persistence
+
+---
+
+## Architectural Principles
+
+### 1. **Unidirectional Dependency Flow**
+
+```
+Core Package (pure logic)
+    ↓ imported by
+CLI Package (terminal) + Web Package (browser)
+```
+
+**✅ Allowed:**
+```typescript
+// CLI importing from core
+import { AgenticAnalyzer } from '@pd-scout/core';
+```
+
+**❌ Forbidden:**
+```typescript
+// Core importing from CLI (breaks architecture)
+import { logger } from '@pd-scout/cli';
+```
+
+### 2. **What Goes Where**
+
+**Core package:**
+- ✅ Agentic analyzer logic
+- ✅ Tool registry and implementations
+- ✅ Pattern/template loaders and validators
+- ✅ Data models (Zod schemas)
+- ✅ Pure utility functions
+- ❌ CLI-specific code (Commander, spinners)
+- ❌ React components or Next.js code
+
+**CLI package:**
+- ✅ Command definitions (analyze, init, validate, list)
+- ✅ Terminal output formatting
+- ✅ Interactive prompts
+- ✅ Process exit codes
+- ❌ Business logic (belongs in core)
+
+**Web package** (future):
+- ✅ React components for results display
+- ✅ Dashboard UI with filtering/sorting
+- ✅ Database persistence (Prisma)
+- ✅ User authentication
+- ❌ Analysis logic (belongs in core)
+
+### 3. **Testing Strategy**
+
+**Core package:**
+- Unit tests for all business logic
+- Integration tests for agentic loop
+- Mock OpenAI API calls
+- Target: 80%+ coverage
+
+**CLI package:**
+- Integration tests for commands
+- Test that `pd-scout analyze` produces correct output
+- Mock filesystem operations
+
+**Web package** (future):
+- Component tests (React Testing Library)
+- E2E tests (Playwright)
+- API route tests
+
+---
+
+## Code Patterns Specific to pd-scout
+
+### 1. **Agentic Loop Pattern**
+
+The core of pd-scout is the agentic exploration loop:
+
+```typescript
+// src/core/analyzer.ts
+export class AgenticAnalyzer {
+  async analyze(): Promise<AnalysisResult> {
+    // 1. Initialize conversation with system prompt
+    this.history = [
+      { role: 'system', content: this.buildSystemPrompt() },
+      { role: 'user', content: this.buildUserPrompt() }
+    ];
+    
+    // 2. Agentic loop: LLM decides what tools to use
+    for (let round = 0; round < maxRounds; round++) {
+      const response = await this.client.chat.completions.create({
+        model: 'gpt-4-turbo',
+        messages: this.history,
+        tools: this.tools.getDefinitions(), // ← LLM can call these
+      });
+      
+      // 3. Execute tool calls requested by LLM
+      if (response.tool_calls) {
+        for (const toolCall of response.tool_calls) {
+          const result = await this.tools.execute(toolCall.name, toolCall.args);
+          this.history.push({ role: 'tool', content: result });
+        }
+      }
+      
+      // 4. Check if LLM finished analysis
+      if (this.tools.isFinished()) break;
+      
+      // 5. Budget control
+      if (this.tokensUsed > this.tokenBudget * 0.8) {
+        return this.forceCompletion();
+      }
+    }
+    
+    return this.tools.getResults();
+  }
+}
+```
+
+**Key points for LLMs working on this:**
+- LLM decides exploration strategy (not hardcoded)
+- Tools are the interface between LLM and codebase
+- Budget controls prevent runaway costs
+- History maintains conversation context
+
+### 2. **Tool Pattern**
+
+Tools are functions the LLM can call:
+
+```typescript
+// src/core/tools.ts
+export class ToolRegistry {
+  getDefinitions(): ChatCompletionTool[] {
+    return [
+      {
+        type: 'function',
+        function: {
+          name: 'list_files',
+          description: 'List files in the repository matching a glob pattern',
+          parameters: {
+            type: 'object',
+            properties: {
+              pattern: { type: 'string', description: 'Glob pattern like "**/*.tsx"' }
+            }
+          }
+        }
+      },
+      // ... more tools
+    ];
+  }
+  
+  async execute(name: string, args: Record<string, unknown>) {
+    switch (name) {
+      case 'list_files':
+        return this.repoHandler.listFiles(args.pattern);
+      case 'read_files':
+        return this.repoHandler.readFiles(args.files);
+      case 'finish_analysis':
+        this.finishCalled = true;
+        this.analysisResults = args;
+        return { status: 'complete' };
+      // ... more cases
+    }
+  }
+}
+```
+
+**When adding new tools:**
+1. Define in `getDefinitions()` with clear description
+2. Implement in `execute()` switch statement
+3. Test with actual LLM calls
+4. Document in HOW-IT-WORKS.md
+
+### 3. **Pattern/Template Loading**
+
+Patterns and templates are YAML files loaded at runtime:
+
+```typescript
+// src/patterns/loader.ts
+export class PatternLoader {
+  async load(nameOrPath: string): Promise<LoadedPattern> {
+    // 1. Try user patterns directory
+    const userPath = join(this.patternsDir, `${nameOrPath}.yaml`);
+    if (await exists(userPath)) return this.loadFromFile(userPath);
+    
+    // 2. Try built-in patterns
+    const builtInPath = join(this.builtInDir, `${nameOrPath}.yaml`);
+    if (await exists(builtInPath)) return this.loadFromFile(builtInPath);
+    
+    // 3. Try as explicit file path
+    if (await exists(nameOrPath)) return this.loadFromFile(nameOrPath);
+    
+    throw new Error(`Pattern not found: ${nameOrPath}`);
+  }
+}
+```
+
+**This enables:**
+- Users can create custom patterns without modifying code
+- Built-in patterns ship with pd-scout
+- Patterns are validated with Zod schemas
+
+---
+
+## Development Workflow
+
+### Current State (CLI Only)
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build TypeScript
+pnpm build
+
+# Run CLI locally
+pnpm --filter @nyt/pd-scout start
+
+# Or link globally
+npm link
+pd-scout --version
+
+# Run tests (when they exist - currently missing!)
+pnpm test
+
+# Lint
+pnpm lint
+```
+
+### Future State (CLI + Web)
+
+```bash
+# Start everything in development mode
+pnpm dev
+
+# Or start individually
+pnpm dev:cli     # CLI with watch mode
+pnpm dev:web     # Next.js dev server on http://localhost:3000
+
+# Build for production
+pnpm build        # Builds core, then CLI and web
+
+# Run all tests
+pnpm test
+```
+
+---
+
+## Common Tasks for LLMs
+
+### Task: Add a New Pattern
+
+1. Create YAML file in `src/patterns/builtin/`
+2. Define file patterns and search patterns
+3. Define categories for findings
+4. Validate with `pd-scout validate patterns/your-pattern.yaml`
+
+**Example:**
+```yaml
+# src/patterns/builtin/spacing.yaml
+name: spacing
+description: Find spacing inconsistencies
+filePatterns:
+  - "**/*.tsx"
+  - "**/*.css"
+searchPatterns:
+  typescript:
+    - pattern: "margin:|padding:"
+      description: "Inline spacing values"
+categories:
+  - id: not_using_tokens
+    label: "Not Using Design Tokens"
+    priority: high
+```
+
+### Task: Add a New Tool
+
+1. Add tool definition in `src/core/tools.ts` → `getDefinitions()`
+2. Implement in `execute()` method
+3. Add to repo handler if it needs file access
+4. Test with actual analysis
+5. Document in `docs/HOW-IT-WORKS.md`
+
+**Example:**
+```typescript
+// In getDefinitions()
+{
+  type: 'function',
+  function: {
+    name: 'get_git_history',
+    description: 'Get git commit history for a file',
+    parameters: {
+      type: 'object',
+      properties: {
+        filePath: { type: 'string' }
+      }
+    }
+  }
+}
+
+// In execute()
+case 'get_git_history':
+  return this.repoHandler.getGitHistory(args.filePath);
+```
+
+### Task: Fix a Bug in Agentic Loop
+
+1. Read `src/core/analyzer.ts` carefully
+2. Understand the conversation history flow
+3. Check token tracking and budget controls
+4. Test with `--dry-run` first (cheaper)
+5. Add unit tests to prevent regression
+
+### Task: Improve Documentation
+
+pd-scout has specific documentation philosophy:
+
+**docs/HOW-IT-WORKS.md:**
+- Plain-English explanations
+- Use analogies (e.g., "LLM is like a design systems expert")
+- Visual diagrams (ASCII art is fine)
+- Explain causation ("does X because Y")
+- Progressively reveal complexity
+
+**docs/ARCHITECTURE.md:**
+- Technical deep-dive
+- Design decisions and trade-offs
+- Code examples with explanations
+
+**README.md:**
+- Quick start for users
+- Common use cases
+- Troubleshooting
+
+---
+
+## Known Issues & Future Work
+
+### Current Gaps (Help Wanted!)
+
+1. **Testing:** No test suite exists yet (see audit)
+   - Need unit tests for core logic
+   - Need integration tests for CLI commands
+   - Need fixtures for testing analysis
+
+2. **Error Handling:** Could be more robust
+   - Better error messages when LLM fails
+   - Graceful degradation when tools fail
+   - Retry logic for API errors
+
+3. **Performance:** Analysis can be slow
+   - Pre-search optimization could be better
+   - Consider streaming results
+   - Cache intermediate results
+
+4. **Documentation:** Some gaps
+   - Need more examples of custom patterns
+   - Need video walkthrough
+   - Need comparison to ESLint/Stylelint
+
+### Future Enhancements
+
+1. **Web UI:** Dashboard for browsing results
+   - Visual filtering and sorting
+   - Team collaboration features
+   - Progress tracking over time
+   - Integration with issue trackers
+
+2. **More Patterns:** Expand built-in patterns
+   - Color usage
+   - Animation/motion
+   - Component usage
+   - Accessibility patterns
+
+3. **Better LLM Support:** Expand beyond OpenAI
+   - Support Anthropic Claude
+   - Support local models (Ollama)
+   - Cost comparison between models
+
+4. **CI/CD Integration:** Run in pipelines
+   - GitHub Action
+   - Pre-commit hook
+   - Comment on PRs with findings
+
+---
+
+## Code Style & Conventions
+
+Follow **general-rules.mdc** for:
+- TypeScript standards
+- Naming conventions
+- Code comments
+- Error handling
+- Documentation
+
+**pd-scout specific conventions:**
+
+1. **File naming:**
+   - Lowercase with dashes: `repo-handler.ts`
+   - Test files: `repo-handler.test.ts`
+   - YAML files: `typography.yaml` (not `.yml`)
+
+2. **Async/await:**
+   - Prefer async/await over promises
+   - Always handle errors with try-catch
+   - Use early returns
+
+3. **Comments:**
+   - Explain "why" not "what"
+   - Use analogies for complex concepts
+   - Document agentic behavior patterns
+   - Include examples in JSDoc
+
+4. **Logging:**
+   - Use `logger` utility (not console.log directly)
+   - Log at appropriate levels (debug, info, warn, error)
+   - Remember: CLI output IS the UI, so intentional logging is fine
+
+5. **Type safety:**
+   - Use Zod for runtime validation
+   - Define types explicitly
+   - Avoid `any` (use `unknown` if needed)
+
+---
+
+## Communication with NYT Design Systems Team
+
+When making significant changes:
+
+1. **Architectural changes:** Discuss in PR, explain trade-offs
+2. **New features:** Ensure they align with mission (design system audits)
+3. **Breaking changes:** Document migration path
+4. **Performance impacts:** Provide benchmarks (token usage, cost, time)
+
+**Remember:** This tool is used by real design systems teams. Changes affect:
+- Cost (OpenAI API usage)
+- Accuracy (quality of recommendations)
+- Usability (CLI UX, future web UI)
+
+---
+
+## Quick Reference
+
+### Project Structure
+```
+src/
+├── core/              # Business logic (the brain)
+├── cli/               # Terminal interface
+├── models/            # Types and schemas
+├── patterns/          # Pattern system
+├── templates/         # Template system
+└── utils/             # Utilities
+```
+
+### Key Files
+- `src/core/analyzer.ts` - Agentic loop implementation
+- `src/core/tools.ts` - Tool registry and implementations
+- `src/cli/commands/analyze.ts` - Main analyze command
+- `src/models/config.ts` - Configuration schema
+- `src/patterns/loader.ts` - Pattern loading logic
+
+### Commands
+```bash
+pd-scout analyze --template typography-audit    # Run analysis
+pd-scout init                                   # Create config
+pd-scout list patterns                          # Show patterns
+pd-scout validate patterns/custom.yaml          # Validate YAML
+```
+
+### Environment Variables
+```bash
+OPENAI_API_KEY=sk-...     # Required: OpenAI API key
+LOG_LEVEL=debug           # Optional: Set log verbosity
+```
+
+---
+
+## Summary: What pd-scout Is and Isn't
+
+### ✅ pd-scout IS:
+- An intelligent design system adoption auditor
+- A CLI tool that uses LLMs to understand context
+- Extensible via YAML (no code changes needed)
+- Built for design systems teams
+- A framework for pattern-driven analysis
+
+### ❌ pd-scout IS NOT:
+- A traditional linter with fixed rules
+- A code formatter
+- A general-purpose code analysis tool
+- Real-time (it's designed for periodic audits)
+- Free (costs money via OpenAI API)
+
+---
+
+**For LLMs working on pd-scout:**
+
+Your job is to help maintain and improve this tool while preserving its core mission: helping design system teams understand and improve adoption in real-world codebases. Keep the agentic approach, maintain extensibility, and always consider the cost/accuracy trade-offs of any changes.
+
+When in doubt, refer to:
+1. This file (mission & architecture)
+2. `general-rules.mdc` (code standards)
+3. `docs/HOW-IT-WORKS.md` (plain-English explanations)
+4. `docs/ARCHITECTURE.md` (technical deep-dive)
+
+**Key mantra:** Make it easy for teams to create custom patterns without touching code. The YAML interface is the product.

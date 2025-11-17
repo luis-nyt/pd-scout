@@ -1,0 +1,61 @@
+name: color
+description: "Identify color usage patterns and design system adoption"
+version: 1.0.0
+
+filePatterns:
+  - "**/*.tsx"
+  - "**/*.jsx"
+  - "**/*.ts"
+  - "**/*.js"
+  - "**/*.css"
+  - "**/*.scss"
+
+searchPatterns:
+  typescript:
+    - pattern: "color:"
+      description: "Inline color in style objects"
+      category: "inline-style"
+    - pattern: "backgroundColor:"
+      description: "Inline background-color in style objects"
+      category: "inline-style"
+    - pattern: "borderColor:"
+      description: "Inline border-color in style objects"
+      category: "inline-style"
+    - pattern: "#[0-9a-fA-F]{3,8}"
+      description: "Hex color values"
+      category: "hex-color"
+    - pattern: "rgb\\("
+      description: "RGB color values"
+      category: "rgb-color"
+    - pattern: "rgba\\("
+      description: "RGBA color values"
+      category: "rgba-color"
+
+categories:
+  - id: explicit_non_adoption
+    label: "❌ Not Using Design System"
+    description: "Hardcoded color values"
+    priority: high
+
+  - id: compliant_non_adoption
+    label: "⚠️  Values Match But Not Integrated"
+    description: "Colors match design system but not using tokens"
+    priority: medium
+
+  - id: tokenized_adoption
+    label: "✅ Using Tokens"
+    description: "Using color tokens from design system"
+    priority: low
+
+  - id: full_adoption
+    label: "✅✅ Full Integration"
+    description: "Using design system color utilities or components"
+    priority: low
+
+author: "NYT Design Systems"
+tags:
+  - color
+  - colors
+  - design-tokens
+  - theming
+

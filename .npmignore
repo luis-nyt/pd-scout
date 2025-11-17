@@ -1,0 +1,20 @@
+# Source files
+src/
+tsconfig.json
+tsup.config.ts
+biome.json
+
+# Tests
+**/*.test.ts
+**/*.spec.ts
+vitest.config.ts
+
+# Development
+.github/
+examples/
+docs/
+
+# Cache and logs
+.pd-scout-cache/
+*.log
+

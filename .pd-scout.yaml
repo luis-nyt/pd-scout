@@ -1,0 +1,14 @@
+project:
+  name: my-project
+  designSystem: Design System
+analysis:
+  tokenBudget: 100000
+  maxRounds: 10
+  model: gpt-4-turbo
+paths:
+  patterns: ./patterns
+  templates: ./templates
+  output: ./output
+cache:
+  enabled: true
+  directory: ./.pd-scout-cache

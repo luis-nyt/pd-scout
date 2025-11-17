@@ -1,0 +1,79 @@
+name: typography
+description: "Identify typography usage patterns across web and native platforms"
+version: 1.0.0
+
+filePatterns:
+  - "**/*.tsx"
+  - "**/*.jsx"
+  - "**/*.ts"
+  - "**/*.js"
+  - "**/*.css"
+  - "**/*.scss"
+  - "**/*.swift"
+
+searchPatterns:
+  typescript:
+    - pattern: "fontSize:"
+      description: "Inline font-size in style objects"
+      category: "inline-style"
+    - pattern: "font-size:"
+      description: "CSS font-size property"
+      category: "css-property"
+    - pattern: "fontFamily:"
+      description: "Inline font-family in style objects"
+      category: "inline-style"
+    - pattern: "font-family:"
+      description: "CSS font-family property"
+      category: "css-property"
+    - pattern: "fontWeight:"
+      description: "Inline font-weight in style objects"
+      category: "inline-style"
+    - pattern: "font-weight:"
+      description: "CSS font-weight property"
+      category: "css-property"
+    - pattern: "lineHeight:"
+      description: "Inline line-height in style objects"
+      category: "inline-style"
+    - pattern: "line-height:"
+      description: "CSS line-height property"
+      category: "css-property"
+
+  swift:
+    - pattern: "UIFont"
+      description: "Direct UIFont usage"
+      category: "uikit-font"
+    - pattern: "\\.font\\("
+      description: "SwiftUI font modifier"
+      category: "swiftui-font"
+    - pattern: "systemFont"
+      description: "System font usage"
+      category: "system-font"
+
+categories:
+  - id: explicit_non_adoption
+    label: "❌ Not Using Design System"
+    description: "Hardcoded values that don't match design system tokens"
+    priority: high
+
+  - id: compliant_non_adoption
+    label: "⚠️  Values Match But Not Integrated"
+    description: "Correct values but not using design system infrastructure (tokens or components)"
+    priority: medium
+
+  - id: tokenized_adoption
+    label: "✅ Using Tokens"
+    description: "Using design tokens directly (good, but components would be better)"
+    priority: low
+
+  - id: full_adoption
+    label: "✅✅ Full Integration"
+    description: "Using design system components or utilities properly"
+    priority: low
+
+author: "NYT Design Systems"
+tags:
+  - typography
+  - fonts
+  - text-styles
+  - design-tokens
+

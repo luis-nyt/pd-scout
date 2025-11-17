@@ -1,0 +1,64 @@
+{
+  "name": "@nyt/pd-scout",
+  "version": "1.0.0",
+  "description": "Pattern-driven codebase analysis tool for design system visibility",
+  "type": "module",
+  "bin": {
+    "pd-scout": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist/",
+    "patterns/",
+    "templates/"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/post-build.js",
+    "build:tsup": "tsup",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "prepare": "pnpm build"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "@openai/openai": "^4.47.1",
+    "ajv": "^8.12.0",
+    "commander": "^11.1.0",
+    "cosmiconfig": "^9.0.0",
+    "globby": "^14.0.1",
+    "pathe": "^1.1.2",
+    "simple-git": "^3.24.0",
+    "tiktoken": "^1.0.13",
+    "yaml": "^2.4.1",
+    "zod": "^3.23.6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.7.3",
+    "@types/node": "^20.12.7",
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.5",
+    "vitest": "^1.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nyt/pd-scout"
+  },
+  "keywords": [
+    "design-system",
+    "codebase-analysis",
+    "llm",
+    "agentic",
+    "audit",
+    "patterns"
+  ],
+  "author": "NYT Design Systems",
+  "license": "MIT"
+}
+

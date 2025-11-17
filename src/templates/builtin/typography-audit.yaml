@@ -1,0 +1,105 @@
+name: typography-audit
+description: "Comprehensive typography audit against design system"
+version: 1.0.0
+pattern: typography
+
+systemPrompt: |
+  You are an expert at analyzing design systems in codebases. Think of yourself as a consultant
+  who helps teams understand how well they're adopting their design system.
+  
+  Your goal is to identify typography usage and categorize each instance according to
+  the design system adoption framework.
+  
+  ANALYSIS STRATEGY:
+  1. Start by listing files to understand the codebase structure
+  2. If {designSystem} documentation is available, search it to understand typography tokens
+  3. Read representative files from different areas of the codebase
+  4. Use search_code to quantify patterns (how widespread are different approaches?)
+  5. Categorize each instance according to the pattern's categories
+  6. Provide specific, actionable recommendations prioritized by impact
+  
+  IMPORTANT GUIDELINES:
+  - Report ALL instances found, not just problems
+  - Provide specific line numbers whenever possible
+  - Classify each finding according to adoption categories
+  - Suggest specific design system tokens/components (not generic advice)
+  - Consider context - some hardcoded values might be intentional
+  - Look for patterns across files (is this systematic or one-off?)
+  
+  BUDGET CONSTRAINTS:
+  - Token budget: {tokenBudget} tokens
+  - Max rounds: {maxRounds} exploration rounds
+  - Be strategic about which files to read in detail
+  
+  When you have enough information, call finish_analysis with your findings.
+
+userPromptTemplate: |
+  Analyze this codebase for typography usage patterns.
+  
+  **Context:**
+  - Project: {projectName}
+  - Design system: {designSystem}
+  - File patterns to focus on: {filePatterns}
+  - Focus areas: {focusAreas}
+  
+  **Pre-search results:**
+  Found {presearchCount} files with typography patterns.
+  
+  **What I need from you:**
+  1. Comprehensive list of ALL typography instances with specific locations (file + line numbers)
+  2. Category classification for each instance based on the pattern's categories
+  3. Patterns of usage across the codebase (what's systematic vs. one-off?)
+  4. Prioritized recommendations for improving design system adoption
+  
+  Be thorough but strategic with your exploration given the budget constraints.
+
+strategy:
+  - "Start with file listing to understand codebase structure and size"
+  - "Search design system docs if available to understand canonical tokens"
+  - "Read sample files from different directories to understand patterns"
+  - "Use search_code to quantify how widespread different patterns are"
+  - "Categorize exhaustively - don't skip instances"
+  - "Prioritize recommendations by impact (files with many instances) and effort (easy wins)"
+
+outputSchema:
+  fields:
+    - name: file
+      type: string
+      required: true
+      description: "Relative file path from repository root"
+    
+    - name: lines
+      type: string
+      required: true
+      description: "Line number or range (e.g., '42' or '42-45')"
+    
+    - name: category
+      type: string
+      required: true
+      description: "One of the pattern's category IDs"
+    
+    - name: description
+      type: string
+      required: true
+      description: "Clear explanation of what was found and why it matters"
+    
+    - name: current
+      type: string
+      required: true
+      description: "Current implementation (code snippet showing the issue)"
+    
+    - name: suggested
+      type: string
+      required: true
+      description: "Suggested design system token/component to use instead"
+    
+    - name: priority
+      type: string
+      required: false
+      description: "Priority for fixing (low, medium, high)"
+
+variables:
+  designSystem: "Design System"
+  focusAreas: "fonts, font-sizes, line-heights, font-weights, font-families"
+  presearchCount: "0"
+

@@ -1,0 +1,46 @@
+# Example pd-scout configuration
+# Copy to .pd-scout.yaml and customize for your project
+
+project:
+  name: "my-app"
+  designSystem: "Design System"
+  # Optional: Repository to analyze (URL or local path)
+  # If not provided, uses current directory
+  repo: "./src"
+
+analysis:
+  # Maximum tokens to spend on analysis (controls cost/depth)
+  # 100,000 tokens ≈ $2-5 depending on model
+  tokenBudget: 100000
+  
+  # Maximum exploration rounds
+  # More rounds = deeper analysis but higher cost
+  maxRounds: 10
+  
+  # OpenAI model to use
+  # Options: gpt-4-turbo, gpt-4, gpt-3.5-turbo
+  model: "gpt-4-turbo"
+  
+  # Optional: API key (or set OPENAI_API_KEY environment variable)
+  # apiKey: "sk-..."
+
+# Optional: Reference documentation to include in analysis
+# The LLM will read these docs to make better recommendations
+context:
+  - url: "@https://github.com/my-org/design-system"
+    type: "design-system"
+    docPaths:
+      - "docs/**/*.md"
+      - "src/**/*.mdx"
+
+# File paths
+paths:
+  patterns: "./patterns"      # Custom pattern directory
+  templates: "./templates"    # Custom template directory
+  output: "./output"          # Where to save results
+
+# Caching
+cache:
+  enabled: true
+  directory: "./.pd-scout-cache"
+
