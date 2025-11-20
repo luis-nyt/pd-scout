@@ -2,6 +2,10 @@
 
 All notable changes to pd-scout will be documented in this file.
 
+2025-11-20
+- backed up the original root readme, added scout.png to the repo, and replaced the homepage copy with a simple “scout is a framework for auditing design system usage” under-construction note so visitors know a rebuild is in flight
+- wired the “iOS Typography Audit” mention in the root readme to https://nyt-ios-newsreader-typography-audit.vercel.app/ so folks can click straight into the existing case study while we rebuild
+
 ## 2025-11-17
 
 ### Branch: `main`
